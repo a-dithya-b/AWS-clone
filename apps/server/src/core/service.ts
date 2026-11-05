@@ -49,6 +49,11 @@ export interface ActionDef<S extends z.ZodType = z.ZodType, O = unknown> {
   dataEvent?: boolean;
   /** The ARN this call targets. Defaults to "*". */
   resource?(input: z.output<S>, ctx: RequestContext): string;
+  /**
+   * The account that owns the target resource, when the ARN doesn't say (S3 ARNs have no account).
+   * Used to apply cross-account rules.
+   */
+  resourceAccount?(input: z.output<S>, ctx: RequestContext): string | undefined;
   /** Resource-based policies that also apply, e.g. an S3 bucket policy. */
   resourcePolicies?(input: z.output<S>, ctx: RequestContext): PolicySource[];
   /** Service-specific condition keys, e.g. { "s3:prefix": "photos/" }. */
@@ -66,6 +71,10 @@ export interface ServiceModule {
   eventSource?: string;
   /** Error code for invalid input. IAM uses ValidationError; SQS uses InvalidParameterValue. */
   validationErrorCode?: string;
+  /** Error code for denied calls. Most services use AccessDenied; EC2 uses UnauthorizedOperation. */
+  accessDeniedCode?: string;
+  /** Text before the standard denial message, e.g. EC2's "You are not authorized to perform this operation." */
+  accessDeniedPrefix?: string;
   migrations?: Migration[];
   /** Runs at startup after migrations, e.g. to insert AWS-managed policies. Must be idempotent. */
   seed?(deps: CoreDeps): void;

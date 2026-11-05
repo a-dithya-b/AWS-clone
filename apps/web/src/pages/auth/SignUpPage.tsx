@@ -1,8 +1,8 @@
 import { SignUpInput } from "@cloudlearn/shared";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
+import { ApiErrorAlert } from "@/components/ApiErrorAlert";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/feedback";
 import { Field } from "@/components/ui/form";
 import { useSession, useSignUp } from "@/lib/session";
 import { useTitle } from "@/lib/useTitle";
@@ -90,7 +90,7 @@ export function SignUpPage() {
           error={errors.confirm}
         />
 
-        {signUp.error && <Alert variant="error">{signUp.error.message}</Alert>}
+        <ApiErrorAlert error={signUp.error} title="Couldn't create the account" />
 
         <Button type="submit" className="w-full" disabled={signUp.isPending}>
           {signUp.isPending ? "Creating account…" : "Create account"}

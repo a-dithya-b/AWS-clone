@@ -1,4 +1,10 @@
-import type { SessionInfo, SessionResponse, SignInInput, SignUpInput } from "@cloudlearn/shared";
+import type {
+  SessionInfo,
+  SessionResponse,
+  SignInInput,
+  SignUpInput,
+  SwitchRoleInput,
+} from "@cloudlearn/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import { api } from "./api";
@@ -40,3 +46,6 @@ function useSessionMutation<I>(
 export const useSignIn = () => useSessionMutation((input: SignInInput) => api.signIn(input));
 export const useSignUp = () => useSessionMutation((input: SignUpInput) => api.signUp(input));
 export const useSignOut = () => useSessionMutation((_: undefined) => api.signOut());
+export const useSwitchRole = () =>
+  useSessionMutation((input: SwitchRoleInput) => api.switchRole(input));
+export const useSwitchBack = () => useSessionMutation((_: undefined) => api.switchBack());

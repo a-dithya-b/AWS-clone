@@ -8,6 +8,8 @@ export interface AuthorizationRequest {
   action: string;
   /** Target resource ARN, or "*". */
   resource: string;
+  /** Owner of the resource when its ARN has no account (S3). */
+  resourceAccount?: string;
   /** Resource-based policies that also apply (e.g. a bucket policy). */
   resourcePolicies?: PolicySource[];
   /** Extra, service-specific condition keys. */

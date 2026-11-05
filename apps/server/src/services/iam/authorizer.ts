@@ -126,7 +126,7 @@ export function createIamAuthorizer(db: Db, clock: Clock): Authorizer {
         identityPolicies = role ? policiesForRole(db, role) : [];
       }
 
-      const resourceAccount = parseArn(req.resource)?.accountId ?? "";
+      const resourceAccount = req.resourceAccount ?? parseArn(req.resource)?.accountId ?? "";
       const crossAccount =
         !req.identityOnly &&
         /^\d{12}$/.test(resourceAccount) &&

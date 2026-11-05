@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CircleCheck, CircleDashed } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
+import { ApiErrorAlert, isAccessDenied } from "@/components/ApiErrorAlert";
 import { CopyButton } from "@/components/CopyButton";
 import { EventTable } from "@/components/EventTable";
 import { PageHeader } from "@/components/PageHeader";
@@ -49,7 +50,7 @@ function IdentityCard() {
         {identity.isPending ? (
           <Spinner />
         ) : identity.isError ? (
-          <Alert variant="error">{identity.error.message}</Alert>
+          <ApiErrorAlert error={identity.error} />
         ) : (
           <dl className="space-y-3">
             {rows.map((r) => (
@@ -95,7 +96,18 @@ function RecentActivityCard() {
         </CardBody>
       ) : events.isError ? (
         <CardBody>
-          <Alert variant="error">{events.error.message}</Alert>
+          {isAccessDenied(events.error) ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-fg">
+                You can't see the activity log: your identity isn't allowed{" "}
+                <code className="font-mono text-xs">cloudtrail:LookupEvents</code>. That's IAM
+                working as intended. Everything is denied unless a policy allows it.
+              </p>
+              <ApiErrorAlert error={events.error} title="Why can't I see this?" />
+            </div>
+          ) : (
+            <ApiErrorAlert error={events.error} />
+          )}
         </CardBody>
       ) : events.data.Events.length === 0 ? (
         <CardBody className="text-sm text-muted">No activity yet.</CardBody>
@@ -135,17 +147,49 @@ function ServicesCard() {
 }
 
 function LearningPathCard() {
+  const session = useRequiredSession();
+  const summary = useQuery({
+    queryKey: ["iam", "GetAccountSummary", {}],
+    queryFn: () => api.action<{ SummaryMap: Record<string, number> }>("iam", "GetAccountSummary"),
+    retry: false,
+  });
+  const events = useQuery({
+    queryKey: ["cloudtrail", "LookupEvents", "recent"],
+    queryFn: () => api.action<LookupEventsOutput>("cloudtrail", "LookupEvents", { MaxResults: 8 }),
+    retry: false,
+  });
+  const type = session.principal.type;
+  const sawDenied = events.data?.Events.some((e) => e.ErrorCode === "AccessDenied") ?? false;
   const steps: { title: string; body: ReactNode; done?: boolean }[] = [
+    { title: "Create your sandbox account", body: "You did this already.", done: true },
     {
-      title: "Create your sandbox account",
-      body: "You're signed in as its root user.",
-      done: true,
+      title: "Create an IAM user with a console password",
+      body: (
+        <>
+          As root, open{" "}
+          <Link to="/iam/users/create" className="text-brand hover:underline">
+            IAM → Create user
+          </Link>
+          .
+        </>
+      ),
+      done: (summary.data?.SummaryMap.Users ?? 0) > 0 || type !== "root",
     },
     {
-      title: "Explore the activity log",
-      body: "Open a row in Recent activity to see why it was allowed.",
+      title: "Sign in as that IAM user",
+      body: "Use the sign-in URL from the IAM dashboard, ideally in a private window.",
+      done: type !== "root",
     },
-    { title: "IAM: users, groups and policies", body: "Arrives in Phase 2." },
+    {
+      title: "Get an AccessDenied and read why",
+      body: "Try something your user isn't allowed to do, then click “Why was this denied?”.",
+      done: sawDenied,
+    },
+    {
+      title: "Switch into a role",
+      body: "Create a role that trusts your user, then use Switch role in the account menu.",
+      done: type === "assumed-role",
+    },
     { title: "SQS: queues and the live simulator", body: "Arrives in Phase 3." },
   ];
   return (
@@ -201,9 +245,22 @@ export function ConsoleHomePage() {
         )}
         {session.principal.type === "root" && (
           <Alert variant="warning" title="You're signed in as the root user">
-            The root user can do anything, and its access can't be limited by IAM policies. In real
-            AWS, you'd use it only for a few account-level tasks and do daily work as an IAM user.
-            You'll practice that once IAM arrives.
+            <p>
+              The root user can do anything, and IAM policies can't limit it. In real AWS you'd use
+              it only for a few account-level tasks and do daily work as an IAM user.
+            </p>
+            <Link
+              to="/iam/users/create"
+              className="mt-1 inline-flex items-center gap-1 font-medium text-brand hover:underline"
+            >
+              Create an IAM user <ArrowRight className="size-3.5" aria-hidden />
+            </Link>
+          </Alert>
+        )}
+        {session.principal.type === "assumed-role" && (
+          <Alert variant="info" title={`You're using the role ${session.principal.name}`}>
+            Your user's own permissions are set aside; the role's permissions apply until you switch
+            back or the session expires.
           </Alert>
         )}
       </div>

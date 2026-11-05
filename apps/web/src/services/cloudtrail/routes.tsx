@@ -2,11 +2,12 @@ import type { LookupEventsOutput } from "@cloudlearn/shared";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { Route, Routes } from "react-router";
+import { ApiErrorAlert } from "@/components/ApiErrorAlert";
 import { EventTable } from "@/components/EventTable";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Alert, Spinner } from "@/components/ui/feedback";
+import { Spinner } from "@/components/ui/feedback";
 import { api } from "@/lib/api";
 import { useTitle } from "@/lib/useTitle";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -44,7 +45,7 @@ function EventHistoryPage() {
           </div>
         ) : query.isError ? (
           <div className="p-5">
-            <Alert variant="error">{query.error.message}</Alert>
+            <ApiErrorAlert error={query.error} />
           </div>
         ) : events.length === 0 ? (
           <p className="p-5 text-sm text-muted">No events yet.</p>

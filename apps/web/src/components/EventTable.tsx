@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatRelative } from "@/lib/format";
+import { EvaluationExplainer } from "./EvaluationExplainer";
 import { Badge } from "./ui/feedback";
 
 export function DecisionBadge({ event }: { event: TrailEvent }) {
@@ -39,10 +40,17 @@ function EventDetails({ event }: { event: TrailEvent }) {
           </div>
         )}
         {event.Evaluation && (
-          <div>
-            <p className="font-medium text-fg">Why: {event.Evaluation.decision}</p>
-            <p className="text-muted">{event.Evaluation.reason}</p>
-          </div>
+          <details
+            className="rounded-md border border-border bg-surface p-3"
+            open={event.Decision !== "Allow"}
+          >
+            <summary className="cursor-pointer font-medium text-fg">
+              {event.Decision === "Allow" ? "Why was this allowed?" : "Why was this denied?"}
+            </summary>
+            <div className="mt-3">
+              <EvaluationExplainer evaluation={event.Evaluation} />
+            </div>
+          </details>
         )}
         {event.Request != null && (
           <div>
@@ -67,7 +75,7 @@ export function EventTable({
 }) {
   const [open, setOpen] = useState<string | null>(null);
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-border bg-surface-muted text-xs text-muted">
           <tr>

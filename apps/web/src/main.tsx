@@ -10,6 +10,7 @@ import { SignUpPage } from "./pages/auth/SignUpPage";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { ConsoleHomePage } from "./pages/ConsoleHomePage";
 import { NotFoundPage, RouteErrorPage } from "./pages/NotFoundPage";
+import { SwitchRolePage } from "./pages/SwitchRolePage";
 import { services } from "./services/registry";
 import { ConsoleLayout } from "./shell/ConsoleLayout";
 import "./styles.css";
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
         errorElement: <RouteErrorPage />,
         children: [
           { path: "console", element: <ConsoleHomePage /> },
+          { path: "switchrole", element: <SwitchRolePage /> },
           ...serviceRoutes,
           { path: "*", element: <NotFoundPage /> },
         ],

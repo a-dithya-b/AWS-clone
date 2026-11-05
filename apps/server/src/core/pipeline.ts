@@ -102,19 +102,21 @@ export function serviceRoutes(deps: CoreDeps) {
             session,
             action: action.iamAction,
             resource,
+            resourceAccount: action.resourceAccount?.(input, ctx),
             resourcePolicies: action.resourcePolicies?.(input, ctx),
             conditionKeys: action.conditionKeys?.(input, ctx),
           });
 
     if (evaluation.decision !== "Allow") {
       const err = new AwsError(
-        "AccessDenied",
-        accessDeniedMessage({
-          principalArn: session.principal.arn,
-          action: action.iamAction,
-          resource,
-          decision: evaluation.decision,
-        }),
+        service.accessDeniedCode ?? "AccessDenied",
+        (service.accessDeniedPrefix ?? "") +
+          accessDeniedMessage({
+            principalArn: session.principal.arn,
+            action: action.iamAction,
+            resource,
+            decision: evaluation.decision,
+          }),
         403,
         evaluation,
       );

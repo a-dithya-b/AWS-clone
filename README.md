@@ -8,8 +8,10 @@ an activity log that explains why it was allowed or denied.
 > CloudLearn is an independent educational project and is not affiliated with, endorsed by, or
 > sponsored by Amazon Web Services.
 
-**Status:** Phase 1 (foundation) is done: sign-up, sign-in, the console shell, and a CloudTrail-style
-event history. IAM is next. See the [build plan](docs/PLAN.md).
+**Status:** Phases 1–2 work: the console, a CloudTrail-style event history, and IAM (users, groups,
+roles, policies with real evaluation, the policy simulator, switch role). The SQS API and its live
+event stream are built; the SQS console UI is next. See the [handoff notes](docs/HANDOFF.md) and
+the [build plan](docs/PLAN.md).
 
 ## Run it
 

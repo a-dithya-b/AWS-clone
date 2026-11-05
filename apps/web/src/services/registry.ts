@@ -32,16 +32,8 @@ export const services: ServiceManifest[] = [
     category: "Security, Identity & Compliance",
     description: "Users, groups, roles and the policies that decide who can do what.",
     icon: KeyRound,
-    status: "coming-soon",
-    roadmap: {
-      phase: "Phase 2",
-      learn: [
-        "Create IAM users and groups, and sign in as them",
-        "Write policy JSON and watch it allow or deny real API calls",
-        "See why explicit Deny always wins",
-        "Switch into roles with trust policies",
-      ],
-    },
+    status: "available",
+    load: () => import("./iam/routes"),
   },
   {
     id: "sqs",

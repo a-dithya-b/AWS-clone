@@ -5,6 +5,7 @@ import type {
   SessionResponse,
   SignInInput,
   SignUpInput,
+  SwitchRoleInput,
 } from "@cloudlearn/shared";
 
 /** An error from the CloudLearn API, with the AWS error code (e.g. "AccessDenied"). */
@@ -48,6 +49,10 @@ export const api = {
   signUp: (input: SignUpInput) => request<{ session: SessionInfo }>("/api/auth/signup", input),
   signIn: (input: SignInInput) => request<{ session: SessionInfo }>("/api/auth/signin", input),
   signOut: () => request<SessionResponse>("/api/auth/signout", {}),
+  switchRole: (input: SwitchRoleInput) =>
+    request<{ session: SessionInfo }>("/api/auth/switch-role", input),
+  switchBack: () =>
+    request<{ session: SessionInfo } | SessionResponse>("/api/auth/switch-back", {}),
   /** Calls a simulated AWS API action, e.g. action("sqs", "SendMessage", {...}). */
   action: <T>(service: string, action: string, input: object = {}) =>
     request<T>(`/api/services/${service}/${action}`, input),
