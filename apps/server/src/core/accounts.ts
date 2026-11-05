@@ -68,7 +68,9 @@ export function findAccountByAlias(db: Db, alias: string): Account | undefined {
 /** Finds an account by its 12-digit ID or its alias, as the IAM user sign-in page does. */
 export function findAccountByIdOrAlias(db: Db, idOrAlias: string): Account | undefined {
   const value = idOrAlias.trim().replace(/-/g, "");
-  return /^\d{12}$/.test(value) ? findAccountById(db, value) : findAccountByAlias(db, idOrAlias.trim());
+  return /^\d{12}$/.test(value)
+    ? findAccountById(db, value)
+    : findAccountByAlias(db, idOrAlias.trim());
 }
 
 export function setAccountAlias(db: Db, id: string, alias: string | null) {

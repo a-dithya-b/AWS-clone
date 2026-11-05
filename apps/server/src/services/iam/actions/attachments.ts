@@ -12,8 +12,24 @@ import {
   RoleName,
   UserName,
 } from "../common";
-import { groupArn, requireGroup, requirePolicy, requireRole, requireUser, roleArn, userArn } from "../lookup";
-import { attach, attachedPolicies, deleteInline, detach, inlinePolicies, type PrincipalKind, putInline } from "../repo";
+import {
+  groupArn,
+  requireGroup,
+  requirePolicy,
+  requireRole,
+  requireUser,
+  roleArn,
+  userArn,
+} from "../lookup";
+import {
+  attach,
+  attachedPolicies,
+  deleteInline,
+  detach,
+  inlinePolicies,
+  type PrincipalKind,
+  putInline,
+} from "../repo";
 
 /**
  * Managed-policy attachments and inline policies work the same way for users, groups and roles,
@@ -37,7 +53,8 @@ const kinds: Kind[] = [
 function actionsFor(k: Kind): AnyActionDef[] {
   const nameKey = `${k.label}Name` as const;
   const nameOf = (i: Record<string, unknown>) => i[nameKey] as string;
-  const withName = <T extends z.ZodRawShape>(shape: T) => z.object({ [nameKey]: k.nameSchema, ...shape });
+  const withName = <T extends z.ZodRawShape>(shape: T) =>
+    z.object({ [nameKey]: k.nameSchema, ...shape });
 
   return [
     defineAction({
@@ -51,9 +68,18 @@ function actionsFor(k: Kind): AnyActionDef[] {
         const policy = requirePolicy(ctx, i.PolicyArn as string);
         const current = attachedPolicies(ctx.deps.db, k.kind, entity.id);
         if (!current.some((p) => p.id === policy.id) && current.length >= MAX_ATTACHED_POLICIES) {
-          throw limitExceeded(`Cannot exceed quota for PoliciesPer${k.label}: ${MAX_ATTACHED_POLICIES}`);
+          throw limitExceeded(
+            `Cannot exceed quota for PoliciesPer${k.label}: ${MAX_ATTACHED_POLICIES}`,
+          );
         }
-        attach(ctx.deps.db, ctx.session.accountId, policy.id, k.kind, entity.id, ctx.deps.clock.now());
+        attach(
+          ctx.deps.db,
+          ctx.session.accountId,
+          policy.id,
+          k.kind,
+          entity.id,
+          ctx.deps.clock.now(),
+        );
         return {};
       },
     }),
@@ -144,7 +170,8 @@ function actionsFor(k: Kind): AnyActionDef[] {
         const exists = inlinePolicies(ctx.deps.db, k.kind, entity.id).some(
           (p) => p.name.toLowerCase() === (i.PolicyName as string).toLowerCase(),
         );
-        if (!exists) throw noSuchEntity(`The ${k.kind} policy with name ${i.PolicyName} cannot be found.`);
+        if (!exists)
+          throw noSuchEntity(`The ${k.kind} policy with name ${i.PolicyName} cannot be found.`);
         deleteInline(ctx.deps.db, k.kind, entity.id, i.PolicyName as string);
         return {};
       },

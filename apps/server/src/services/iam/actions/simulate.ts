@@ -1,9 +1,14 @@
-import { type ContextValue, type Evaluation, evaluate, type PolicySource } from "@cloudlearn/iam-engine";
+import {
+  type ContextValue,
+  type Evaluation,
+  evaluate,
+  type PolicySource,
+} from "@cloudlearn/iam-engine";
 import { DEFAULT_REGION, parseArn } from "@cloudlearn/shared";
 import { z } from "zod";
 import { defineAction } from "../../../core/service";
-import { DocumentInput, invalidInput, noSuchEntity, parseDocument } from "../common";
 import { policiesForGroup, policiesForRole, policiesForUser } from "../authorizer";
+import { DocumentInput, invalidInput, noSuchEntity, parseDocument } from "../common";
 import { findGroup, findRole, findUser } from "../repo";
 
 const ActionNames = z
@@ -21,7 +26,11 @@ const ContextEntries = z
   )
   .default([]);
 
-const DECISION_NAMES = { Allow: "allowed", ExplicitDeny: "explicitDeny", ImplicitDeny: "implicitDeny" } as const;
+const DECISION_NAMES = {
+  Allow: "allowed",
+  ExplicitDeny: "explicitDeny",
+  ImplicitDeny: "implicitDeny",
+} as const;
 
 function toContext(entries: z.output<typeof ContextEntries>): Record<string, ContextValue> {
   return Object.fromEntries(

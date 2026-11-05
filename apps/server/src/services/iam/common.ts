@@ -26,10 +26,17 @@ export const Path = z
   .regex(/^\/([\x21-\x7E]*\/)?$/, "Path must begin and end with a forward slash (/).")
   .default("/");
 
-export const PolicyArn = z.string().min(20).max(2048).startsWith("arn:aws:iam::", "PolicyArn must be an IAM policy ARN.");
+export const PolicyArn = z
+  .string()
+  .min(20)
+  .max(2048)
+  .startsWith("arn:aws:iam::", "PolicyArn must be an IAM policy ARN.");
 
 /** A policy document, given as a JSON string (like the AWS API) or as an object. */
-export const DocumentInput = z.union([z.string().min(1).max(131072), z.record(z.string(), z.unknown())]);
+export const DocumentInput = z.union([
+  z.string().min(1).max(131072),
+  z.record(z.string(), z.unknown()),
+]);
 
 export const Pagination = {
   Marker: z.string().regex(/^\d+$/, "Marker is not valid.").optional(),

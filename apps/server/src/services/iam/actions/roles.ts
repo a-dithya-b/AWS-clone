@@ -4,8 +4,8 @@ import { defineAction } from "../../../core/service";
 import { deleteSessionsForPrincipal } from "../../../core/sessions";
 import {
   alreadyExists,
-  deleteConflict,
   DocumentInput,
+  deleteConflict,
   formatRole,
   Pagination,
   Path,
@@ -91,7 +91,11 @@ export const roleActions = [
     name: "UpdateRole",
     iamAction: "iam:UpdateRole",
     accessLevel: "Write",
-    input: z.object({ RoleName, Description: Description.optional(), MaxSessionDuration: MaxSessionDuration.optional() }),
+    input: z.object({
+      RoleName,
+      Description: Description.optional(),
+      MaxSessionDuration: MaxSessionDuration.optional(),
+    }),
     resource: (i, ctx) => roleArn(ctx, i.RoleName),
     handler: (i, ctx) => {
       const role = requireRole(ctx, i.RoleName);
@@ -111,7 +115,9 @@ export const roleActions = [
     resource: (i, ctx) => roleArn(ctx, i.RoleName),
     handler: (i, ctx) => {
       const role = requireRole(ctx, i.RoleName);
-      updateRole(ctx.deps.db, role.id, { trustPolicy: parseDocument(ctx.deps, i.PolicyDocument, "trust") });
+      updateRole(ctx.deps.db, role.id, {
+        trustPolicy: parseDocument(ctx.deps, i.PolicyDocument, "trust"),
+      });
       return {};
     },
   }),

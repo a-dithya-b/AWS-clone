@@ -51,7 +51,12 @@ const toUser = (r: UserRow): IamUser => ({
 });
 
 export function findUser(db: Db, accountId: string, name: string): IamUser | undefined {
-  const r = get<UserRow>(db, "SELECT * FROM iam_users WHERE account_id = ? AND name = ?", accountId, name);
+  const r = get<UserRow>(
+    db,
+    "SELECT * FROM iam_users WHERE account_id = ? AND name = ?",
+    accountId,
+    name,
+  );
   return r && toUser(r);
 }
 
@@ -69,7 +74,13 @@ export function listUsers(db: Db, accountId: string, pathPrefix = "/"): IamUser[
   ).map(toUser);
 }
 
-export function insertUser(db: Db, accountId: string, name: string, path: string, now: Date): IamUser {
+export function insertUser(
+  db: Db,
+  accountId: string,
+  name: string,
+  path: string,
+  now: Date,
+): IamUser {
   const id = generateIamId("AIDA");
   run(
     db,
@@ -137,7 +148,12 @@ const toGroup = (r: GroupRow): IamGroup => ({
 });
 
 export function findGroup(db: Db, accountId: string, name: string): IamGroup | undefined {
-  const r = get<GroupRow>(db, "SELECT * FROM iam_groups WHERE account_id = ? AND name = ?", accountId, name);
+  const r = get<GroupRow>(
+    db,
+    "SELECT * FROM iam_groups WHERE account_id = ? AND name = ?",
+    accountId,
+    name,
+  );
   return r && toGroup(r);
 }
 
@@ -150,7 +166,13 @@ export function listGroups(db: Db, accountId: string, pathPrefix = "/"): IamGrou
   ).map(toGroup);
 }
 
-export function insertGroup(db: Db, accountId: string, name: string, path: string, now: Date): IamGroup {
+export function insertGroup(
+  db: Db,
+  accountId: string,
+  name: string,
+  path: string,
+  now: Date,
+): IamGroup {
   const id = generateIamId("AGPA");
   run(
     db,
@@ -243,7 +265,12 @@ const toRole = (r: RoleRow): IamRole => ({
 });
 
 export function findRole(db: Db, accountId: string, name: string): IamRole | undefined {
-  const r = get<RoleRow>(db, "SELECT * FROM iam_roles WHERE account_id = ? AND name = ?", accountId, name);
+  const r = get<RoleRow>(
+    db,
+    "SELECT * FROM iam_roles WHERE account_id = ? AND name = ?",
+    accountId,
+    name,
+  );
   return r && toRole(r);
 }
 
@@ -294,14 +321,28 @@ export function insertRole(
 export function updateRole(
   db: Db,
   roleId: string,
-  fields: { description?: string | null; maxSessionDuration?: number; trustPolicy?: PolicyDocument },
+  fields: {
+    description?: string | null;
+    maxSessionDuration?: number;
+    trustPolicy?: PolicyDocument;
+  },
 ) {
   if (fields.description !== undefined)
     run(db, "UPDATE iam_roles SET description = ? WHERE id = ?", fields.description, roleId);
   if (fields.maxSessionDuration !== undefined)
-    run(db, "UPDATE iam_roles SET max_session_duration = ? WHERE id = ?", fields.maxSessionDuration, roleId);
+    run(
+      db,
+      "UPDATE iam_roles SET max_session_duration = ? WHERE id = ?",
+      fields.maxSessionDuration,
+      roleId,
+    );
   if (fields.trustPolicy !== undefined)
-    run(db, "UPDATE iam_roles SET trust_policy = ? WHERE id = ?", JSON.stringify(fields.trustPolicy), roleId);
+    run(
+      db,
+      "UPDATE iam_roles SET trust_policy = ? WHERE id = ?",
+      JSON.stringify(fields.trustPolicy),
+      roleId,
+    );
 }
 
 export function touchRole(db: Db, roleId: string, now: Date) {
@@ -382,9 +423,11 @@ export function listPolicies(
         ? "account_id = ?"
         : "(account_id IS NULL OR account_id = ?)";
   const params = scope === "AWS" ? [] : [accountId];
-  return all<PolicyRow>(db, `SELECT * FROM iam_policies WHERE ${where} ORDER BY name`, ...params).map(
-    toPolicy,
-  );
+  return all<PolicyRow>(
+    db,
+    `SELECT * FROM iam_policies WHERE ${where} ORDER BY name`,
+    ...params,
+  ).map(toPolicy);
 }
 
 export function insertPolicy(
@@ -445,7 +488,11 @@ export function listPolicyVersions(db: Db, policy: ManagedPolicy): PolicyVersion
   }));
 }
 
-export function getPolicyVersion(db: Db, policy: ManagedPolicy, versionId: string): PolicyVersion | undefined {
+export function getPolicyVersion(
+  db: Db,
+  policy: ManagedPolicy,
+  versionId: string,
+): PolicyVersion | undefined {
   return listPolicyVersions(db, policy).find((v) => v.versionId === versionId);
 }
 
@@ -491,7 +538,12 @@ export function setDefaultVersion(db: Db, policyId: string, versionId: string, n
 }
 
 export function deletePolicyVersion(db: Db, policyId: string, versionId: string) {
-  run(db, "DELETE FROM iam_policy_versions WHERE policy_id = ? AND version_id = ?", policyId, versionId);
+  run(
+    db,
+    "DELETE FROM iam_policy_versions WHERE policy_id = ? AND version_id = ?",
+    policyId,
+    versionId,
+  );
 }
 
 /** Replaces the default version's document in place. Only used to refresh AWS-managed seeds. */
@@ -511,7 +563,11 @@ export function deletePolicyRow(db: Db, policyId: string) {
 
 // ---------------------------------------------------------------- attachments
 
-export function attachedPolicies(db: Db, kind: PrincipalKind, principalId: string): ManagedPolicy[] {
+export function attachedPolicies(
+  db: Db,
+  kind: PrincipalKind,
+  principalId: string,
+): ManagedPolicy[] {
   return all<PolicyRow>(
     db,
     `SELECT p.* FROM iam_policies p JOIN iam_policy_attachments a ON a.policy_id = p.id
@@ -521,7 +577,14 @@ export function attachedPolicies(db: Db, kind: PrincipalKind, principalId: strin
   ).map(toPolicy);
 }
 
-export function attach(db: Db, accountId: string, policyId: string, kind: PrincipalKind, principalId: string, now: Date) {
+export function attach(
+  db: Db,
+  accountId: string,
+  policyId: string,
+  kind: PrincipalKind,
+  principalId: string,
+  now: Date,
+) {
   run(
     db,
     `INSERT OR IGNORE INTO iam_policy_attachments (policy_id, account_id, principal_type, principal_id, attached_at)
@@ -571,12 +634,16 @@ export function entitiesForPolicy(db: Db, policyId: string, accountId: string): 
       kind,
     ).map((r) => r.principal_id);
   return {
-    users: ids("user").map((id) => findUserById(db, id)).filter((u): u is IamUser => !!u),
+    users: ids("user")
+      .map((id) => findUserById(db, id))
+      .filter((u): u is IamUser => !!u),
     groups: ids("group")
       .map((id) => get<GroupRow>(db, "SELECT * FROM iam_groups WHERE id = ?", id))
       .filter((g): g is GroupRow => !!g)
       .map(toGroup),
-    roles: ids("role").map((id) => findRoleById(db, id)).filter((r): r is IamRole => !!r),
+    roles: ids("role")
+      .map((id) => findRoleById(db, id))
+      .filter((r): r is IamRole => !!r),
   };
 }
 
@@ -631,12 +698,25 @@ export function deleteInline(db: Db, kind: PrincipalKind, principalId: string, n
 }
 
 export function deleteAllForPrincipal(db: Db, kind: PrincipalKind, principalId: string) {
-  run(db, "DELETE FROM iam_inline_policies WHERE principal_type = ? AND principal_id = ?", kind, principalId);
-  run(db, "DELETE FROM iam_policy_attachments WHERE principal_type = ? AND principal_id = ?", kind, principalId);
+  run(
+    db,
+    "DELETE FROM iam_inline_policies WHERE principal_type = ? AND principal_id = ?",
+    kind,
+    principalId,
+  );
+  run(
+    db,
+    "DELETE FROM iam_policy_attachments WHERE principal_type = ? AND principal_id = ?",
+    kind,
+    principalId,
+  );
 }
 
 // ---------------------------------------------------------------- account summary
 
 export function countFor(db: Db, table: string, accountId: string): number {
-  return get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM ${table} WHERE account_id = ?`, accountId)?.n ?? 0;
+  return (
+    get<{ n: number }>(db, `SELECT COUNT(*) AS n FROM ${table} WHERE account_id = ?`, accountId)
+      ?.n ?? 0
+  );
 }

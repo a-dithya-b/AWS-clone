@@ -12,9 +12,9 @@ import {
   MAX_POLICY_VERSIONS,
   noSuchEntity,
   Pagination,
+  Path,
   PolicyArn,
   PolicyName,
-  Path,
   paginate,
   parseDocument,
 } from "../common";
@@ -44,7 +44,12 @@ function requireCustomerManaged(policy: ManagedPolicy) {
   }
 }
 
-const formatVersion = (v: { versionId: string; document: unknown; createdAt: string; isDefault: boolean }) => ({
+const formatVersion = (v: {
+  versionId: string;
+  document: unknown;
+  createdAt: string;
+  isDefault: boolean;
+}) => ({
   VersionId: v.versionId,
   Document: v.document,
   IsDefaultVersion: v.isDefault,
@@ -69,7 +74,9 @@ export const policyActions = [
         (p) => p.name.toLowerCase() === i.PolicyName.toLowerCase(),
       );
       if (existing) {
-        throw alreadyExists(`A policy called ${i.PolicyName} already exists. Duplicate names are not allowed.`);
+        throw alreadyExists(
+          `A policy called ${i.PolicyName} already exists. Duplicate names are not allowed.`,
+        );
       }
       const document = parseDocument(deps, i.PolicyDocument, "identity");
       const policy = insertPolicy(deps.db, {
@@ -93,7 +100,12 @@ export const policyActions = [
     resource: (i) => i.PolicyArn,
     handler: (i, ctx) => {
       const policy = requirePolicy(ctx, i.PolicyArn);
-      return { Policy: formatPolicy(policy, attachmentCount(ctx.deps.db, policy.id, ctx.session.accountId)) };
+      return {
+        Policy: formatPolicy(
+          policy,
+          attachmentCount(ctx.deps.db, policy.id, ctx.session.accountId),
+        ),
+      };
     },
   }),
 
@@ -164,7 +176,11 @@ export const policyActions = [
     name: "CreatePolicyVersion",
     iamAction: "iam:CreatePolicyVersion",
     accessLevel: "Permissions management",
-    input: z.object({ PolicyArn, PolicyDocument: DocumentInput, SetAsDefault: z.boolean().default(false) }),
+    input: z.object({
+      PolicyArn,
+      PolicyDocument: DocumentInput,
+      SetAsDefault: z.boolean().default(false),
+    }),
     resource: (i) => i.PolicyArn,
     handler: (i, ctx) => {
       const { db, clock } = ctx.deps;
@@ -196,7 +212,10 @@ export const policyActions = [
     handler: (i, ctx) => {
       const policy = requirePolicy(ctx, i.PolicyArn);
       const version = getPolicyVersion(ctx.deps.db, policy, i.VersionId);
-      if (!version) throw noSuchEntity(`Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`);
+      if (!version)
+        throw noSuchEntity(
+          `Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`,
+        );
       return { PolicyVersion: formatVersion(version) };
     },
   }),
@@ -209,7 +228,10 @@ export const policyActions = [
     resource: (i) => i.PolicyArn,
     handler: (i, ctx) => {
       const policy = requirePolicy(ctx, i.PolicyArn);
-      return { Versions: listPolicyVersions(ctx.deps.db, policy).map(formatVersion), IsTruncated: false };
+      return {
+        Versions: listPolicyVersions(ctx.deps.db, policy).map(formatVersion),
+        IsTruncated: false,
+      };
     },
   }),
 
@@ -223,7 +245,9 @@ export const policyActions = [
       const policy = requirePolicy(ctx, i.PolicyArn);
       requireCustomerManaged(policy);
       if (!getPolicyVersion(ctx.deps.db, policy, i.VersionId)) {
-        throw noSuchEntity(`Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`);
+        throw noSuchEntity(
+          `Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`,
+        );
       }
       setDefaultVersion(ctx.deps.db, policy.id, i.VersionId, ctx.deps.clock.now());
       return {};
@@ -240,7 +264,9 @@ export const policyActions = [
       const policy = requirePolicy(ctx, i.PolicyArn);
       requireCustomerManaged(policy);
       if (!getPolicyVersion(ctx.deps.db, policy, i.VersionId)) {
-        throw noSuchEntity(`Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`);
+        throw noSuchEntity(
+          `Policy ${i.PolicyArn} version ${i.VersionId} does not exist or is not attachable.`,
+        );
       }
       if (policy.defaultVersionId === i.VersionId) {
         throw new AwsError("DeleteConflict", "Cannot delete the default version of a policy.", 409);

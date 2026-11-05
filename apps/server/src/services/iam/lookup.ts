@@ -41,18 +41,29 @@ export function requirePolicy(ctx: RequestContext, arn: string): ManagedPolicy {
 
 /** The ARN a request targets: the entity's real ARN if it exists, else the ARN it would have. */
 export function userArn(ctx: RequestContext, name: string, path = "/"): string {
-  return findUser(ctx.deps.db, ctx.session.accountId, name)?.arn ?? iamArn(ctx.session.accountId, "user", path, name);
+  return (
+    findUser(ctx.deps.db, ctx.session.accountId, name)?.arn ??
+    iamArn(ctx.session.accountId, "user", path, name)
+  );
 }
 
 export function groupArn(ctx: RequestContext, name: string, path = "/"): string {
-  return findGroup(ctx.deps.db, ctx.session.accountId, name)?.arn ?? iamArn(ctx.session.accountId, "group", path, name);
+  return (
+    findGroup(ctx.deps.db, ctx.session.accountId, name)?.arn ??
+    iamArn(ctx.session.accountId, "group", path, name)
+  );
 }
 
 export function roleArn(ctx: RequestContext, name: string, path = "/"): string {
-  return findRole(ctx.deps.db, ctx.session.accountId, name)?.arn ?? iamArn(ctx.session.accountId, "role", path, name);
+  return (
+    findRole(ctx.deps.db, ctx.session.accountId, name)?.arn ??
+    iamArn(ctx.session.accountId, "role", path, name)
+  );
 }
 
 /** The caller's own ARN as an IAM resource (for GetUser with no name, ChangePassword…). */
 export function callerUserArn(ctx: RequestContext): string {
-  return ctx.session.principal.type === "root" ? rootArn(ctx.session.accountId) : ctx.session.principal.arn;
+  return ctx.session.principal.type === "root"
+    ? rootArn(ctx.session.accountId)
+    : ctx.session.principal.arn;
 }

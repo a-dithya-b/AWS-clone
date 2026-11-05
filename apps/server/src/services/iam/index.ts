@@ -46,7 +46,9 @@ export const iamService = defineService({
             document: seed.document,
             now: clock.now(),
           });
-        } else if (JSON.stringify(defaultDocument(db, existing)) !== JSON.stringify(seed.document)) {
+        } else if (
+          JSON.stringify(defaultDocument(db, existing)) !== JSON.stringify(seed.document)
+        ) {
           overwriteDefaultDocument(db, existing, seed.document);
         }
       }

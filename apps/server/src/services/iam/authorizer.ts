@@ -5,7 +5,7 @@ import {
   type PolicySource,
 } from "@cloudlearn/iam-engine";
 import { DEFAULT_REGION, type EvaluationSummary } from "@cloudlearn/shared";
-import type { Authorizer, AuthorizationRequest } from "../../core/authorize";
+import type { AuthorizationRequest, Authorizer } from "../../core/authorize";
 import type { Clock } from "../../core/clock";
 import type { Db } from "../../core/db";
 import type { Session } from "../../core/sessions";
@@ -54,7 +54,10 @@ export function policiesForUser(db: Db, user: IamUser): PolicySource[] {
 
 export function policiesForGroup(db: Db, group: IamGroup): PolicySource[] {
   const via = `group/${group.name}`;
-  return [...managedSources(db, "group", group.id, via), ...inlineSources(db, "group", group.id, via)];
+  return [
+    ...managedSources(db, "group", group.id, via),
+    ...inlineSources(db, "group", group.id, via),
+  ];
 }
 
 export function policiesForRole(db: Db, role: IamRole): PolicySource[] {
@@ -70,7 +73,8 @@ export function globalConditionKeys(
   const now = clock.now();
   const { principal } = session;
   const keys: Record<string, ContextValue> = {
-    "aws:PrincipalArn": principal.type === "assumed-role" ? roleArnFromSessionArn(principal.arn) : principal.arn,
+    "aws:PrincipalArn":
+      principal.type === "assumed-role" ? roleArnFromSessionArn(principal.arn) : principal.arn,
     "aws:PrincipalAccount": session.accountId,
     "aws:PrincipalType":
       principal.type === "root" ? "Account" : principal.type === "user" ? "User" : "AssumedRole",
@@ -118,7 +122,8 @@ export function createIamAuthorizer(db: Db, clock: Clock): Authorizer {
         if (!req.resourcePolicies?.length) {
           return {
             decision: "Allow",
-            reason: "The root user has full access to every resource in its own account. IAM policies can't limit it.",
+            reason:
+              "The root user has full access to every resource in its own account. IAM policies can't limit it.",
             matchedStatements: [],
             policiesEvaluated: [],
           };

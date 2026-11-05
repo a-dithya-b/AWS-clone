@@ -9,10 +9,10 @@ import { buildCatalog } from "./core/catalog";
 import { type Clock, systemClock } from "./core/clock";
 import { type Db, runMigrations } from "./core/db";
 import { AwsError } from "./core/errors";
+import { EventBus } from "./core/event-bus";
 import { type AppEnv, loadSession, loopbackHostOnly } from "./core/http";
 import { coreMigrations } from "./core/migrations";
 import { serviceRoutes } from "./core/pipeline";
-import { EventBus } from "./core/event-bus";
 import type { CoreDeps, ServiceModule } from "./core/service";
 import { createIamAuthorizer } from "./services/iam/authorizer";
 

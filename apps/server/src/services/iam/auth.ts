@@ -17,7 +17,11 @@ export async function authenticateIamUser(
 ): Promise<{ account: Account; principal: Principal; failedAccount?: undefined }> {
   const account = findAccountByIdOrAlias(deps.db, input.account);
   const user = account && findUser(deps.db, account.id, input.username);
-  if (!account || !user?.passwordHash || !(await verifyPassword(input.password, user.passwordHash))) {
+  if (
+    !account ||
+    !user?.passwordHash ||
+    !(await verifyPassword(input.password, user.passwordHash))
+  ) {
     const error = new AwsError("AuthFailure", BAD_CREDENTIALS, 401);
     // Let the caller record a failed ConsoleLogin when the user exists.
     Object.assign(error, { account, user });
@@ -55,12 +59,17 @@ export function switchRole(
     );
   }
   if (caller.principal.type !== "user") {
-    throw new AwsError("AccessDenied", "Switch back to your IAM user before switching to another role.", 403);
+    throw new AwsError(
+      "AccessDenied",
+      "Switch back to your IAM user before switching to another role.",
+      403,
+    );
   }
 
   const account = findAccountByIdOrAlias(deps.db, input.account);
   const role = account && findRole(deps.db, account.id, input.roleName);
-  const roleArn = role?.arn ?? `arn:aws:iam::${account?.id ?? input.account}:role/${input.roleName}`;
+  const roleArn =
+    role?.arn ?? `arn:aws:iam::${account?.id ?? input.account}:role/${input.roleName}`;
   const denied = (evaluation: EvaluationSummary, reasonPrefix?: string) =>
     new AwsError(
       "AccessDenied",
@@ -93,7 +102,12 @@ export function switchRole(
 
   // 1. The role must trust the caller.
   const trust = evaluateTrustPolicy({
-    trustPolicy: { id: `${role.arn}/trust`, name: `${role.name} trust policy`, type: "trust", document: role.trustPolicy },
+    trustPolicy: {
+      id: `${role.arn}/trust`,
+      name: `${role.name} trust policy`,
+      type: "trust",
+      document: role.trustPolicy,
+    },
     request,
   });
   if (trust.decision !== "Allow") throw denied(trust);
@@ -103,18 +117,20 @@ export function switchRole(
   const sameAccount = account.id === caller.accountId;
   let evaluation: EvaluationSummary = trust;
   if (!(sameAccount && trust.principalNamedExplicitly)) {
-    const identity = deps.authorizer.authorize({ session: caller, action: "sts:AssumeRole", resource: role.arn });
+    const identity = deps.authorizer.authorize({
+      session: caller,
+      action: "sts:AssumeRole",
+      resource: role.arn,
+    });
     if (identity.decision !== "Allow") {
-      throw denied(
-        {
-          ...identity,
-          reason: `The role trusts you, but ${identity.reason} ${
-            sameAccount
-              ? "Because the trust policy trusts the whole account rather than naming you, your own policies must also allow sts:AssumeRole."
-              : "To assume a role in another account, your own policies must allow sts:AssumeRole on it."
-          }`,
-        },
-      );
+      throw denied({
+        ...identity,
+        reason: `The role trusts you, but ${identity.reason} ${
+          sameAccount
+            ? "Because the trust policy trusts the whole account rather than naming you, your own policies must also allow sts:AssumeRole."
+            : "To assume a role in another account, your own policies must allow sts:AssumeRole on it."
+        }`,
+      });
     }
     evaluation = identity;
   }

@@ -40,7 +40,11 @@ export const groupActions = [
       if (findGroup(deps.db, session.accountId, i.GroupName)) {
         throw alreadyExists(`Group with name ${i.GroupName} already exists.`);
       }
-      return { Group: formatGroup(insertGroup(deps.db, session.accountId, i.GroupName, i.Path, deps.clock.now())) };
+      return {
+        Group: formatGroup(
+          insertGroup(deps.db, session.accountId, i.GroupName, i.Path, deps.clock.now()),
+        ),
+      };
     },
   }),
 
@@ -52,7 +56,11 @@ export const groupActions = [
     resource: (i, ctx) => groupArn(ctx, i.GroupName),
     handler: (i, ctx) => {
       const group = requireGroup(ctx, i.GroupName);
-      const { items, ...page } = paginate(usersInGroup(ctx.deps.db, group.id).map(formatUser), i.Marker, i.MaxItems);
+      const { items, ...page } = paginate(
+        usersInGroup(ctx.deps.db, group.id).map(formatUser),
+        i.Marker,
+        i.MaxItems,
+      );
       return { Group: formatGroup(group), Users: items, ...page };
     },
   }),
@@ -67,7 +75,9 @@ export const groupActions = [
         ...formatGroup(g),
         // CloudLearn additions for the console's group table:
         UserCount: usersInGroup(deps.db, g.id).length,
-        PolicyCount: attachedPolicies(deps.db, "group", g.id).length + inlinePolicies(deps.db, "group", g.id).length,
+        PolicyCount:
+          attachedPolicies(deps.db, "group", g.id).length +
+          inlinePolicies(deps.db, "group", g.id).length,
       }));
       const { items, ...page } = paginate(groups, i.Marker, i.MaxItems);
       return { Groups: items, ...page };

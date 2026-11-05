@@ -141,7 +141,10 @@ export function authRoutes(deps: CoreDeps) {
         recordLogin(account, principal);
         return c.json({ session: toSessionInfo(session) });
       } catch (err) {
-        const { account, user } = err as { account?: Account; user?: { name: string; arn: string; id: string } };
+        const { account, user } = err as {
+          account?: Account;
+          user?: { name: string; arn: string; id: string };
+        };
         if (account && user && err instanceof AwsError) {
           recordLogin(account, { type: "user", name: user.name, arn: user.arn, id: user.id }, err);
         }
@@ -167,13 +170,15 @@ export function authRoutes(deps: CoreDeps) {
     if (!session) throw new AwsError("MissingAuthenticationToken", "You are not signed in.", 401);
     const input = parseInput(SwitchRoleInput, await readJsonBody(c));
     // Switching from a role first returns to the original user, like the console does.
-    const caller =
-      (session.parentToken && findSession(db, clock, session.parentToken)) || session;
+    const caller = (session.parentToken && findSession(db, clock, session.parentToken)) || session;
     const event = {
       eventSource: "sts.amazonaws.com",
       eventName: "AssumeRole",
       iamAction: "sts:AssumeRole",
-      request: { RoleArn: `${input.account}:role/${input.roleName}`, RoleSessionName: caller.principal.name },
+      request: {
+        RoleArn: `${input.account}:role/${input.roleName}`,
+        RoleSessionName: caller.principal.name,
+      },
     };
     try {
       const result = switchRole(deps, caller, {
@@ -203,7 +208,11 @@ export function authRoutes(deps: CoreDeps) {
       return c.json({ session: toSessionInfo(roleSession) });
     } catch (err) {
       if (err instanceof AwsError) {
-        record(caller.accountId, caller.principal, { ...event, error: err, evaluation: err.evaluation });
+        record(caller.accountId, caller.principal, {
+          ...event,
+          error: err,
+          evaluation: err.evaluation,
+        });
       }
       throw err;
     }

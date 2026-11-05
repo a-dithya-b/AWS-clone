@@ -41,7 +41,9 @@ describe("IAM: the Phase 2 'done when' story", () => {
     expect(denied.body.evaluation.reason).toMatch(/No policies are attached/);
 
     // 2. Read-only: listing works, creating doesn't.
-    ok(await root.action("iam", "AttachUserPolicy", { UserName: "alice", PolicyArn: IAM_READ_ONLY }));
+    ok(
+      await root.action("iam", "AttachUserPolicy", { UserName: "alice", PolicyArn: IAM_READ_ONLY }),
+    );
     expect(ok(await alice.action("iam", "ListUsers")).Users).toHaveLength(1);
     expect((await alice.action("iam", "CreateUser", { UserName: "eve" })).status).toBe(403);
 
@@ -79,7 +81,11 @@ describe("IAM: the Phase 2 'done when' story", () => {
     await alice.action("iam", "ListUsers");
     const events = ok(await root.action("cloudtrail", "LookupEvents")).Events;
     const denied = events.find((e: { EventName: string }) => e.EventName === "ListUsers");
-    expect(denied).toMatchObject({ Username: "alice", ErrorCode: "AccessDenied", Decision: "ImplicitDeny" });
+    expect(denied).toMatchObject({
+      Username: "alice",
+      ErrorCode: "AccessDenied",
+      Decision: "ImplicitDeny",
+    });
   });
 });
 
@@ -112,7 +118,9 @@ describe("IAM users", () => {
       ok(await root.action("iam", action, input));
     }
     ok(await root.action("iam", "DeleteUser", { UserName: "bob" }));
-    expect((await root.action("iam", "GetUser", { UserName: "bob" })).body.code).toBe("NoSuchEntity");
+    expect((await root.action("iam", "GetUser", { UserName: "bob" })).body.code).toBe(
+      "NoSuchEntity",
+    );
   });
 
   it("ends a deleted user's sessions", async () => {
@@ -155,20 +163,33 @@ describe("IAM users", () => {
       }),
     );
     const alice = await signIn("alice");
-    ok(await alice.action("iam", "ChangePassword", { OldPassword: "user-password-1", NewPassword: "new-password-2" }));
-    expect((await alice.action("iam", "UpdateLoginProfile", { UserName: "bob", Password: "hacked-123" })).status).toBe(403);
+    ok(
+      await alice.action("iam", "ChangePassword", {
+        OldPassword: "user-password-1",
+        NewPassword: "new-password-2",
+      }),
+    );
+    expect(
+      (await alice.action("iam", "UpdateLoginProfile", { UserName: "bob", Password: "hacked-123" }))
+        .status,
+    ).toBe(403);
     expect((await t.client().signInIam(accountId, "alice", "new-password-2")).status).toBe(200);
   });
 });
 
 describe("IAM policies", () => {
   const doc = (action: string) =>
-    JSON.stringify({ Version: "2012-10-17", Statement: [{ Effect: "Allow", Action: action, Resource: "*" }] });
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [{ Effect: "Allow", Action: action, Resource: "*" }],
+    });
 
   it("seeds AWS managed policies", async () => {
     const res = ok(await root.action("iam", "ListPolicies", { Scope: "AWS" }));
     const names = res.Policies.map((p: { PolicyName: string }) => p.PolicyName);
-    expect(names).toEqual(expect.arrayContaining(["AdministratorAccess", "AmazonSQSFullAccess", "PowerUserAccess"]));
+    expect(names).toEqual(
+      expect.arrayContaining(["AdministratorAccess", "AmazonSQSFullAccess", "PowerUserAccess"]),
+    );
   });
 
   it("rejects malformed policies with AWS's messages", async () => {
@@ -185,51 +206,90 @@ describe("IAM policies", () => {
     });
     const principal = await root.action("iam", "CreatePolicy", {
       PolicyName: "Bad",
-      PolicyDocument: { Statement: [{ Effect: "Allow", Principal: "*", Action: "s3:*", Resource: "*" }] },
+      PolicyDocument: {
+        Statement: [{ Effect: "Allow", Principal: "*", Action: "s3:*", Resource: "*" }],
+      },
     });
     expect(principal.body.message).toBe("Policy document should not specify a principal.");
   });
 
   it("manages versions: max 5, can't delete the default, SetAsDefault changes behavior", async () => {
-    const { Policy } = ok(await root.action("iam", "CreatePolicy", { PolicyName: "P", PolicyDocument: doc("iam:ListUsers") }));
+    const { Policy } = ok(
+      await root.action("iam", "CreatePolicy", {
+        PolicyName: "P",
+        PolicyDocument: doc("iam:ListUsers"),
+      }),
+    );
     await createUser("alice");
     ok(await root.action("iam", "AttachUserPolicy", { UserName: "alice", PolicyArn: Policy.Arn }));
     const alice = await signIn("alice");
     ok(await alice.action("iam", "ListUsers"));
 
-    ok(await root.action("iam", "CreatePolicyVersion", { PolicyArn: Policy.Arn, PolicyDocument: doc("iam:ListGroups"), SetAsDefault: true }));
+    ok(
+      await root.action("iam", "CreatePolicyVersion", {
+        PolicyArn: Policy.Arn,
+        PolicyDocument: doc("iam:ListGroups"),
+        SetAsDefault: true,
+      }),
+    );
     expect((await alice.action("iam", "ListUsers")).status).toBe(403);
     ok(await alice.action("iam", "ListGroups"));
 
     for (let i = 0; i < 3; i++) {
-      ok(await root.action("iam", "CreatePolicyVersion", { PolicyArn: Policy.Arn, PolicyDocument: doc("iam:ListRoles") }));
+      ok(
+        await root.action("iam", "CreatePolicyVersion", {
+          PolicyArn: Policy.Arn,
+          PolicyDocument: doc("iam:ListRoles"),
+        }),
+      );
     }
-    const limit = await root.action("iam", "CreatePolicyVersion", { PolicyArn: Policy.Arn, PolicyDocument: doc("iam:ListRoles") });
+    const limit = await root.action("iam", "CreatePolicyVersion", {
+      PolicyArn: Policy.Arn,
+      PolicyDocument: doc("iam:ListRoles"),
+    });
     expect(limit.body.code).toBe("LimitExceeded");
-    expect((await root.action("iam", "DeletePolicyVersion", { PolicyArn: Policy.Arn, VersionId: "v2" })).body.code).toBe("DeleteConflict");
+    expect(
+      (await root.action("iam", "DeletePolicyVersion", { PolicyArn: Policy.Arn, VersionId: "v2" }))
+        .body.code,
+    ).toBe("DeleteConflict");
 
     // Can't delete while attached or with extra versions.
-    expect((await root.action("iam", "DeletePolicy", { PolicyArn: Policy.Arn })).body.code).toBe("DeleteConflict");
+    expect((await root.action("iam", "DeletePolicy", { PolicyArn: Policy.Arn })).body.code).toBe(
+      "DeleteConflict",
+    );
   });
 
   it("doesn't let you change AWS managed policies", async () => {
-    const res = await root.action("iam", "CreatePolicyVersion", { PolicyArn: ADMIN, PolicyDocument: doc("s3:*") });
+    const res = await root.action("iam", "CreatePolicyVersion", {
+      PolicyArn: ADMIN,
+      PolicyDocument: doc("s3:*"),
+    });
     expect(res.body.code).toBe("InvalidInput");
   });
 
   it("limits attached managed policies to 10", async () => {
     ok(await root.action("iam", "CreateUser", { UserName: "many" }));
     for (let i = 0; i < 10; i++) {
-      const { Policy } = ok(await root.action("iam", "CreatePolicy", { PolicyName: `P${i}`, PolicyDocument: doc("s3:GetObject") }));
+      const { Policy } = ok(
+        await root.action("iam", "CreatePolicy", {
+          PolicyName: `P${i}`,
+          PolicyDocument: doc("s3:GetObject"),
+        }),
+      );
       ok(await root.action("iam", "AttachUserPolicy", { UserName: "many", PolicyArn: Policy.Arn }));
     }
-    const res = await root.action("iam", "AttachUserPolicy", { UserName: "many", PolicyArn: ADMIN });
+    const res = await root.action("iam", "AttachUserPolicy", {
+      UserName: "many",
+      PolicyArn: ADMIN,
+    });
     expect(res.body.code).toBe("LimitExceeded");
   });
 
   it("simulates a principal's policies", async () => {
     await createUser("alice");
-    ok(await root.action("iam", "AttachUserPolicy", { UserName: "alice", PolicyArn: IAM_READ_ONLY }));
+    ok(
+      await root.action("iam", "AttachUserPolicy", { UserName: "alice", PolicyArn: IAM_READ_ONLY }),
+    );
     const res = ok(
       await root.action("iam", "SimulatePrincipalPolicy", {
         PolicySourceArn: `arn:aws:iam::${accountId}:user/alice`,
@@ -260,7 +320,12 @@ describe("roles and switch role", () => {
   });
 
   async function createRole(name: string, principal: string, policyArn = ADMIN) {
-    ok(await root.action("iam", "CreateRole", { RoleName: name, AssumeRolePolicyDocument: trust(principal) }));
+    ok(
+      await root.action("iam", "CreateRole", {
+        RoleName: name,
+        AssumeRolePolicyDocument: trust(principal),
+      }),
+    );
     ok(await root.action("iam", "AttachRolePolicy", { RoleName: name, PolicyArn: policyArn }));
   }
 
@@ -280,7 +345,9 @@ describe("roles and switch role", () => {
     const alice = await signIn("alice");
     const denied = await switchRole(alice, "Admin");
     expect(denied.status).toBe(403);
-    expect(denied.body.evaluation.reason).toMatch(/your own policies must also allow sts:AssumeRole/);
+    expect(denied.body.evaluation.reason).toMatch(
+      /your own policies must also allow sts:AssumeRole/,
+    );
 
     ok(
       await root.action("iam", "PutUserPolicy", {
@@ -288,7 +355,13 @@ describe("roles and switch role", () => {
         PolicyName: "AssumeAdmin",
         PolicyDocument: JSON.stringify({
           Version: "2012-10-17",
-          Statement: [{ Effect: "Allow", Action: "sts:AssumeRole", Resource: `arn:aws:iam::${accountId}:role/Admin` }],
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: "sts:AssumeRole",
+              Resource: `arn:aws:iam::${accountId}:role/Admin`,
+            },
+          ],
         }),
       }),
     );
@@ -339,7 +412,10 @@ describe("roles and switch role", () => {
   it("rejects trust policies without a principal", async () => {
     const res = await root.action("iam", "CreateRole", {
       RoleName: "Bad",
-      AssumeRolePolicyDocument: { Version: "2012-10-17", Statement: [{ Effect: "Allow", Action: "sts:AssumeRole" }] },
+      AssumeRolePolicyDocument: {
+        Version: "2012-10-17",
+        Statement: [{ Effect: "Allow", Action: "sts:AssumeRole" }],
+      },
     });
     expect(res.body.code).toBe("MalformedPolicyDocument");
   });
