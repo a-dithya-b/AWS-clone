@@ -4,7 +4,7 @@ import {
   evaluate,
   type PolicySource,
 } from "@cloudlearn/iam-engine";
-import { DEFAULT_REGION, type EvaluationSummary } from "@cloudlearn/shared";
+import { DEFAULT_REGION, type EvaluationSummary, parseArn } from "@cloudlearn/shared";
 import type { AuthorizationRequest, Authorizer } from "../../core/authorize";
 import type { Clock } from "../../core/clock";
 import type { Db } from "../../core/db";
@@ -116,35 +116,75 @@ export function createIamAuthorizer(db: Db, clock: Clock): Authorizer {
         context: { ...globalConditionKeys(session, clock), ...req.conditionKeys },
       };
 
-      if (session.principal.type === "root") {
-        // Root can't be limited by identity policies. A resource policy's explicit Deny still
-        // applies to root, though (that's how people lock themselves out of S3 buckets).
-        if (!req.resourcePolicies?.length) {
-          return {
-            decision: "Allow",
-            reason:
-              "The root user has full access to every resource in its own account. IAM policies can't limit it.",
-            matchedStatements: [],
-            policiesEvaluated: [],
-          };
-        }
-        return evaluate({
-          identityPolicies: [ROOT_SOURCE],
-          resourcePolicies: req.resourcePolicies,
-          request,
-        });
-      }
-
-      let identityPolicies: PolicySource[] = [];
+      const isRoot = session.principal.type === "root";
+      let identityPolicies: PolicySource[] = [ROOT_SOURCE];
       if (session.principal.type === "user") {
         const user = findUserById(db, session.principal.id);
-        if (user) identityPolicies = policiesForUser(db, user);
-      } else if (session.roleId) {
-        const role = findRoleById(db, session.roleId);
-        if (role) identityPolicies = policiesForRole(db, role);
+        identityPolicies = user ? policiesForUser(db, user) : [];
+      } else if (session.principal.type === "assumed-role") {
+        const role = session.roleId ? findRoleById(db, session.roleId) : undefined;
+        identityPolicies = role ? policiesForRole(db, role) : [];
       }
 
+      const resourceAccount = parseArn(req.resource)?.accountId ?? "";
+      const crossAccount =
+        !req.identityOnly &&
+        /^\d{12}$/.test(resourceAccount) &&
+        resourceAccount !== session.accountId;
+      if (crossAccount)
+        return authorizeCrossAccount(identityPolicies, req.resourcePolicies ?? [], request, isRoot);
+
+      if (req.identityOnly) return evaluate({ identityPolicies, request });
+      if (isRoot && !req.resourcePolicies?.length) {
+        return {
+          decision: "Allow",
+          reason:
+            "The root user has full access to every resource in its own account. IAM policies can't limit it.",
+          matchedStatements: [],
+          policiesEvaluated: [],
+        };
+      }
+      // Root can't be limited by identity policies, but a resource policy's explicit Deny still
+      // applies to it (that's how people lock themselves out of S3 buckets).
       return evaluate({ identityPolicies, resourcePolicies: req.resourcePolicies, request });
     },
+  };
+}
+
+/**
+ * Cross-account requests need two Allows: the caller's own (identity) policies must allow the
+ * action, and the resource's policy must allow the caller. An explicit Deny on either side wins.
+ */
+function authorizeCrossAccount(
+  identityPolicies: PolicySource[],
+  resourcePolicies: PolicySource[],
+  request: EvalRequest,
+  isRoot: boolean,
+): EvaluationSummary {
+  const identity = evaluate({ identityPolicies, request });
+  const resource = evaluate({ identityPolicies: [], resourcePolicies, request });
+  const policiesEvaluated = [...identity.policiesEvaluated, ...resource.policiesEvaluated];
+  for (const side of [identity, resource]) {
+    if (side.decision === "ExplicitDeny") return { ...side, policiesEvaluated };
+  }
+  if (identity.decision === "Allow" && resource.decision === "Allow") {
+    return {
+      decision: "Allow",
+      reason: `Cross-account access needs two Allows, and both are present. ${isRoot ? "Your account's root user is" : "Your own policies are"} allowed: ${identity.reason} The resource's policy also allows you: ${resource.reason}`,
+      matchedStatements: [...identity.matchedStatements, ...resource.matchedStatements],
+      policiesEvaluated,
+    };
+  }
+  const missing =
+    resource.decision !== "Allow"
+      ? resourcePolicies.length
+        ? "the resource's policy in the other account doesn't allow you"
+        : "the resource in the other account has no resource-based policy that allows you"
+      : "your own identity-based policies don't allow this action";
+  return {
+    decision: "ImplicitDeny",
+    reason: `This resource belongs to another account, so access needs an Allow from both sides: your identity-based policies and the resource's policy. Here ${missing}.`,
+    matchedStatements: [],
+    policiesEvaluated,
   };
 }

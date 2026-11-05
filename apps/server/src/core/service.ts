@@ -1,9 +1,11 @@
 import type { AccessLevel, ContextValue, PolicySource } from "@cloudlearn/iam-engine";
+import type { Hono } from "hono";
 import type { z } from "zod";
 import type { Authorizer } from "./authorize";
 import type { Clock } from "./clock";
 import type { Db, Migration } from "./db";
 import type { EventBus } from "./event-bus";
+import type { AppEnv } from "./http";
 import type { Session } from "./sessions";
 
 /** Shared dependencies every handler can use. Passed in, never imported, so tests can swap them. */
@@ -40,6 +42,11 @@ export interface ActionDef<S extends z.ZodType = z.ZodType, O = unknown> {
   authorization?: "required" | "none";
   /** Set to false for read-only console plumbing that would flood the activity log. */
   record?: boolean;
+  /**
+   * True for high-volume data-plane calls (SendMessage, GetObject…). They're recorded as CloudTrail
+   * "Data" events, hidden from the event history unless you ask for them.
+   */
+  dataEvent?: boolean;
   /** The ARN this call targets. Defaults to "*". */
   resource?(input: z.output<S>, ctx: RequestContext): string;
   /** Resource-based policies that also apply, e.g. an S3 bucket policy. */
@@ -64,6 +71,11 @@ export interface ServiceModule {
   seed?(deps: CoreDeps): void;
   /** Starts background work (e.g. timers). Returns a function that stops it. */
   start?(deps: CoreDeps): () => void;
+  /**
+   * Extra HTTP routes outside the action pipeline, mounted at /api/x/{id} (e.g. a live event
+   * stream). They must authorize requests themselves with deps.authorizer.
+   */
+  routes?(deps: CoreDeps): Hono<AppEnv>;
   /** Deletes everything this service stores for an account ("Reset my account"). */
   resetAccount?(deps: CoreDeps, accountId: string): void;
   actions: AnyActionDef[];

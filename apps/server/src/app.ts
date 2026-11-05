@@ -72,6 +72,10 @@ export function createApp(deps: CoreDeps, opts: CreateAppOptions = {}) {
   app.get("/api/meta/catalog", (c) => c.json({ actions: catalog }));
   app.route("/api/auth", authRoutes(deps));
   app.route("/api/services", serviceRoutes(deps));
+  for (const service of deps.services) {
+    const extra = service.routes?.(deps);
+    if (extra) app.route(`/api/x/${service.id}`, extra);
+  }
   app.all("/api/*", (c) => c.json({ code: "NotFound", message: "No such API route." }, 404));
 
   const indexFile = opts.webDir ? join(opts.webDir, "index.html") : undefined;

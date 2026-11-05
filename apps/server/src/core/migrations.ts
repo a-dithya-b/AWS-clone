@@ -55,4 +55,11 @@ export const coreMigrations: Migration[] = [
       CREATE INDEX sessions_role ON sessions(role_id);
     `,
   },
+  {
+    id: "core:003_event_category",
+    sql: `
+      ALTER TABLE api_events ADD COLUMN category TEXT NOT NULL DEFAULT 'Management';
+      CREATE INDEX api_events_account_category ON api_events(account_id, category, id DESC);
+    `,
+  },
 ];

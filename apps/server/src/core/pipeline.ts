@@ -66,6 +66,7 @@ export function serviceRoutes(deps: CoreDeps) {
         errorMessage: fields.error?.message ?? null,
         request: raw,
         evaluation: fields.evaluation,
+        category: action.dataEvent ? "Data" : "Management",
       });
     };
 

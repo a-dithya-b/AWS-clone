@@ -19,9 +19,23 @@ export interface ApiEvent {
   errorMessage: string | null;
   request: unknown;
   evaluation: EvaluationSummary | null;
+  /**
+   * Like CloudTrail: "Management" events (creating queues, changing policies) are shown by
+   * default; "Data" events (sending or receiving messages) are high-volume and opt-in.
+   */
+  category: EventCategory;
 }
 
-export type ApiEventInput = Omit<ApiEvent, "id" | "eventId" | "eventTime"> & { time: Date };
+export type EventCategory = "Management" | "Data";
+
+export type ApiEventInput = Omit<ApiEvent, "id" | "eventId" | "eventTime" | "category"> & {
+  time: Date;
+  category?: EventCategory;
+};
+
+/** Keep the log from growing forever when the simulator runs for hours. */
+const MAX_EVENTS_PER_ACCOUNT = 20000;
+let insertsSincePrune = 0;
 
 interface ApiEventRow {
   id: number;
@@ -39,6 +53,7 @@ interface ApiEventRow {
   error_message: string | null;
   request: string | null;
   evaluation: string | null;
+  category: EventCategory;
 }
 
 /** Hide secrets before they're written to the log, like CloudTrail does. */
@@ -60,8 +75,8 @@ export function recordEvent(db: Db, e: ApiEventInput): void {
     db,
     `INSERT INTO api_events (event_id, account_id, event_time, event_source, event_name, iam_action,
        principal_arn, principal_type, resource_arn, decision, error_code, error_message, request,
-       evaluation)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       evaluation, category)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     eventId,
     e.accountId,
     e.time.toISOString(),
@@ -76,30 +91,64 @@ export function recordEvent(db: Db, e: ApiEventInput): void {
     e.errorMessage,
     e.request === undefined ? null : JSON.stringify(redact(e.request)),
     e.evaluation ? JSON.stringify(e.evaluation) : null,
+    e.category ?? "Management",
   );
+  if (++insertsSincePrune >= 500) {
+    insertsSincePrune = 0;
+    run(
+      db,
+      `DELETE FROM api_events WHERE account_id = ? AND id <= (
+         SELECT id FROM api_events WHERE account_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?)`,
+      e.accountId,
+      e.accountId,
+      MAX_EVENTS_PER_ACCOUNT,
+    );
+  }
+}
+
+export interface LookupFilter {
+  limit: number;
+  beforeId?: number;
+  includeDataEvents?: boolean;
+  /** Exact-match filters, like CloudTrail's LookupAttributes. */
+  eventName?: string;
+  eventSource?: string;
+  username?: string;
+  resourceName?: string;
 }
 
 /** Newest first. `beforeId` continues from a previous page. */
-export function lookupEvents(
-  db: Db,
-  accountId: string,
-  { limit, beforeId }: { limit: number; beforeId?: number },
-): ApiEvent[] {
-  const rows =
-    beforeId === undefined
-      ? all<ApiEventRow>(
-          db,
-          "SELECT * FROM api_events WHERE account_id = ? ORDER BY id DESC LIMIT ?",
-          accountId,
-          limit,
-        )
-      : all<ApiEventRow>(
-          db,
-          "SELECT * FROM api_events WHERE account_id = ? AND id < ? ORDER BY id DESC LIMIT ?",
-          accountId,
-          beforeId,
-          limit,
-        );
+export function lookupEvents(db: Db, accountId: string, f: LookupFilter): ApiEvent[] {
+  const where = ["account_id = ?"];
+  const params: (string | number)[] = [accountId];
+  if (f.beforeId !== undefined) {
+    where.push("id < ?");
+    params.push(f.beforeId);
+  }
+  if (!f.includeDataEvents) where.push("category = 'Management'");
+  if (f.eventName) {
+    where.push("event_name = ?");
+    params.push(f.eventName);
+  }
+  if (f.eventSource) {
+    where.push("event_source = ?");
+    params.push(f.eventSource);
+  }
+  if (f.resourceName) {
+    where.push("resource_arn = ?");
+    params.push(f.resourceName);
+  }
+  if (f.username) {
+    // Matches "root" or the last segment of the principal ARN (user name or role session).
+    where.push("(principal_arn LIKE ? OR (? = 'root' AND principal_type = 'root'))");
+    params.push(`%/${f.username}`, f.username);
+  }
+  const rows = all<ApiEventRow>(
+    db,
+    `SELECT * FROM api_events WHERE ${where.join(" AND ")} ORDER BY id DESC LIMIT ?`,
+    ...params,
+    f.limit,
+  );
   return rows.map((r) => ({
     id: r.id,
     eventId: r.event_id,
@@ -116,5 +165,6 @@ export function lookupEvents(
     errorMessage: r.error_message,
     request: r.request ? JSON.parse(r.request) : null,
     evaluation: r.evaluation ? JSON.parse(r.evaluation) : null,
+    category: r.category,
   }));
 }

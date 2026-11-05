@@ -12,6 +12,11 @@ export interface AuthorizationRequest {
   resourcePolicies?: PolicySource[];
   /** Extra, service-specific condition keys. */
   conditionKeys?: Record<string, ContextValue>;
+  /**
+   * Check only the caller's identity-based policies, even for another account's resource. Used by
+   * AssumeRole, which checks the role's trust policy separately.
+   */
+  identityOnly?: boolean;
 }
 
 /** Decides whether a principal may perform an action. The IAM module provides the real one. */

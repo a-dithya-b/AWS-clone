@@ -18,6 +18,8 @@ export interface TrailEvent {
   EventSource: string;
   Username: string | null;
   Resources: { ResourceName: string }[];
+  /** "Management" (default in CloudTrail) or "Data" (high-volume, e.g. SendMessage). */
+  EventCategory: "Management" | "Data";
   // CloudLearn additions:
   IamAction: string;
   PrincipalArn: string | null;

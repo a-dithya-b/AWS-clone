@@ -20,11 +20,29 @@ export const cloudtrailService = defineService({
       input: z.object({
         MaxResults: z.number().int().min(1).max(50).default(50),
         NextToken: z.string().regex(/^\d+$/, "NextToken is not valid.").optional(),
+        // Like CloudTrail, at most one lookup attribute.
+        LookupAttributes: z
+          .array(
+            z.object({
+              AttributeKey: z.enum(["EventName", "EventSource", "Username", "ResourceName"]),
+              AttributeValue: z.string().min(1),
+            }),
+          )
+          .max(1, "LookupAttributes accepts at most one attribute.")
+          .default([]),
+        /** CloudLearn addition: also return data events such as SendMessage. */
+        IncludeDataEvents: z.boolean().default(false),
       }),
       handler: (input, { session, deps }): LookupEventsOutput => {
+        const attr = input.LookupAttributes[0];
         const events = lookupEvents(deps.db, session.accountId, {
           limit: input.MaxResults + 1,
           beforeId: input.NextToken ? Number(input.NextToken) : undefined,
+          includeDataEvents: input.IncludeDataEvents,
+          eventName: attr?.AttributeKey === "EventName" ? attr.AttributeValue : undefined,
+          eventSource: attr?.AttributeKey === "EventSource" ? attr.AttributeValue : undefined,
+          username: attr?.AttributeKey === "Username" ? attr.AttributeValue : undefined,
+          resourceName: attr?.AttributeKey === "ResourceName" ? attr.AttributeValue : undefined,
         });
         const page = events.slice(0, input.MaxResults);
         const hasMore = events.length > input.MaxResults;
@@ -37,6 +55,7 @@ export const cloudtrailService = defineService({
             Username: usernameFromArn(e.principalArn),
             Resources:
               e.resourceArn && e.resourceArn !== "*" ? [{ ResourceName: e.resourceArn }] : [],
+            EventCategory: e.category,
             IamAction: e.iamAction,
             PrincipalArn: e.principalArn,
             Decision: e.decision,

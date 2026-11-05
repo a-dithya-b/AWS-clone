@@ -101,15 +101,13 @@ export function switchRole(
   };
 
   // 1. The role must trust the caller.
-  const trust = evaluateTrustPolicy({
-    trustPolicy: {
-      id: `${role.arn}/trust`,
-      name: `${role.name} trust policy`,
-      type: "trust",
-      document: role.trustPolicy,
-    },
-    request,
-  });
+  const trustSource = {
+    id: `${role.arn}/trust`,
+    name: `${role.name} trust policy`,
+    type: "trust" as const,
+    document: role.trustPolicy,
+  };
+  const trust = evaluateTrustPolicy({ trustPolicy: trustSource, request });
   if (trust.decision !== "Allow") throw denied(trust);
 
   // 2. The caller needs sts:AssumeRole in its own policies, unless the trust policy names it
@@ -121,11 +119,13 @@ export function switchRole(
       session: caller,
       action: "sts:AssumeRole",
       resource: role.arn,
+      // The trust policy was checked above; this checks the caller's own policies.
+      identityOnly: true,
     });
     if (identity.decision !== "Allow") {
       throw denied({
         ...identity,
-        reason: `The role trusts you, but ${identity.reason} ${
+        reason: `The role trusts you, but your own policies don't allow sts:AssumeRole on it: ${identity.reason} ${
           sameAccount
             ? "Because the trust policy trusts the whole account rather than naming you, your own policies must also allow sts:AssumeRole."
             : "To assume a role in another account, your own policies must allow sts:AssumeRole on it."

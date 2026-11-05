@@ -419,4 +419,50 @@ describe("roles and switch role", () => {
     });
     expect(res.body.code).toBe("MalformedPolicyDocument");
   });
+
+  it("switches into a role in another local account (cross-account)", async () => {
+    // Account B trusts account A's alice; alice also needs sts:AssumeRole in her own policies.
+    const ownerB = t.client();
+    const accountB = ok(await ownerB.signUp({ email: "b@example.com", accountName: "account-b" }))
+      .session.accountId;
+    ok(
+      await ownerB.action("iam", "CreateRole", {
+        RoleName: "Partner",
+        AssumeRolePolicyDocument: trust(`arn:aws:iam::${accountId}:user/alice`),
+      }),
+    );
+    ok(
+      await ownerB.action("iam", "AttachRolePolicy", {
+        RoleName: "Partner",
+        PolicyArn: IAM_READ_ONLY,
+      }),
+    );
+    await createUser("alice");
+    const alice = await signIn("alice");
+
+    const denied = await switchRole(alice, "Partner", accountB);
+    expect(denied.status).toBe(403);
+    expect(denied.body.evaluation.reason).toMatch(/another account/);
+
+    ok(
+      await root.action("iam", "PutUserPolicy", {
+        UserName: "alice",
+        PolicyName: "AssumePartner",
+        PolicyDocument: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: "sts:AssumeRole",
+              Resource: `arn:aws:iam::${accountB}:role/Partner`,
+            },
+          ],
+        }),
+      }),
+    );
+    const res = ok(await switchRole(alice, "Partner", accountB));
+    expect(res.session.accountId).toBe(accountB);
+    const users = ok(await alice.action("iam", "ListUsers")).Users;
+    expect(users).toHaveLength(0); // account B has no users
+  });
 });
