@@ -1,10 +1,31 @@
 export type Decision = "Allow" | "ExplicitDeny" | "ImplicitDeny";
 
+export interface MatchedStatementInfo {
+  policyId: string;
+  policyName: string;
+  policyType: string;
+  attachedVia?: string;
+  statementIndex: number;
+  sid?: string;
+  effect: "Allow" | "Deny";
+  statement: unknown;
+}
+
+export interface EvaluatedPolicyInfo {
+  id: string;
+  name: string;
+  type: string;
+  attachedVia?: string;
+}
+
 /** What the evaluator found. CloudLearn adds this to AccessDenied errors to teach *why*. */
 export interface EvaluationSummary {
   decision: Decision;
   reason: string;
-  matchedStatements: unknown[];
+  /** The statements that decided the outcome (empty for an implicit deny). */
+  matchedStatements: MatchedStatementInfo[];
+  /** Every policy that was considered. */
+  policiesEvaluated?: EvaluatedPolicyInfo[];
 }
 
 /** The JSON body of every API error. `code` and `message` follow AWS; the rest is CloudLearn's. */

@@ -13,6 +13,7 @@ export const stsService = defineService({
     defineAction({
       name: "GetCallerIdentity",
       iamAction: "sts:GetCallerIdentity",
+      accessLevel: "Read",
       // In AWS this call works even when every permission is denied. Same here.
       authorization: "none",
       input: z.object({}),

@@ -1,0 +1,17 @@
+{
+  "name": "@cloudlearn/iam-engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure IAM policy validator and evaluator. No I/O, runs in Node and the browser.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  }
+}

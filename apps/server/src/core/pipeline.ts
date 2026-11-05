@@ -97,7 +97,13 @@ export function serviceRoutes(deps: CoreDeps) {
             reason: `${action.iamAction} doesn't need any permissions. Every signed-in principal can call it.`,
             matchedStatements: [],
           }
-        : deps.authorizer.authorize({ session, action: action.iamAction, resource });
+        : deps.authorizer.authorize({
+            session,
+            action: action.iamAction,
+            resource,
+            resourcePolicies: action.resourcePolicies?.(input, ctx),
+            conditionKeys: action.conditionKeys?.(input, ctx),
+          });
 
     if (evaluation.decision !== "Allow") {
       const err = new AwsError(

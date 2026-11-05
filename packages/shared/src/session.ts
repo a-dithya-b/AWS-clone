@@ -17,7 +17,24 @@ export interface SessionInfo {
   accountAlias: string | null;
   principal: Principal;
   signedInAt: string;
+  expiresAt: string;
+  /** Set while using a switched role: who you were before, for "Switch back". */
+  switchedFrom?: { principalName: string; principalArn: string; accountId: string };
 }
+
+export const SwitchRoleInput = z.object({
+  /** 12-digit account ID or alias that owns the role. */
+  account: z.string().trim().min(1, "Enter the account ID or alias."),
+  roleName: z
+    .string()
+    .trim()
+    .min(1, "Enter the role name.")
+    .max(64)
+    .regex(/^[\w+=,.@-]+$/, "Role names can contain letters, numbers and +=,.@-_ only."),
+  /** Shown in the top bar instead of the role name. Optional. */
+  displayName: z.string().trim().max(64).optional(),
+});
+export type SwitchRoleInput = z.infer<typeof SwitchRoleInput>;
 
 export const SignUpInput = z.object({
   email: z.email("Enter a valid email address."),

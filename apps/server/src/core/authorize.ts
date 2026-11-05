@@ -1,3 +1,4 @@
+import type { ContextValue, PolicySource } from "@cloudlearn/iam-engine";
 import type { EvaluationSummary } from "@cloudlearn/shared";
 import type { Session } from "./sessions";
 
@@ -7,6 +8,10 @@ export interface AuthorizationRequest {
   action: string;
   /** Target resource ARN, or "*". */
   resource: string;
+  /** Resource-based policies that also apply (e.g. a bucket policy). */
+  resourcePolicies?: PolicySource[];
+  /** Extra, service-specific condition keys. */
+  conditionKeys?: Record<string, ContextValue>;
 }
 
 /** Decides whether a principal may perform an action. The IAM module provides the real one. */
@@ -15,8 +20,8 @@ export interface Authorizer {
 }
 
 /**
- * The Phase 1 authorizer. The root user can do anything in its own account (true in AWS too), and
- * any other principal is denied by default. The IAM module replaces this with policy evaluation.
+ * The fallback authorizer, used by tests that don't need IAM. The root user can do anything in its
+ * own account (true in AWS too), and any other principal is denied by default.
  */
 export const rootOnlyAuthorizer: Authorizer = {
   authorize({ session }) {

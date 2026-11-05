@@ -45,4 +45,14 @@ export const coreMigrations: Migration[] = [
       CREATE INDEX api_events_account_time ON api_events(account_id, id DESC);
     `,
   },
+  {
+    id: "core:002_role_sessions",
+    sql: `
+      -- Switched-role sessions remember the role and the session to return to ("Switch back").
+      ALTER TABLE sessions ADD COLUMN role_id TEXT;
+      ALTER TABLE sessions ADD COLUMN parent_token TEXT;
+      CREATE INDEX sessions_principal ON sessions(principal_id);
+      CREATE INDEX sessions_role ON sessions(role_id);
+    `,
+  },
 ];

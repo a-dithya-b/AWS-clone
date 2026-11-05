@@ -9,7 +9,10 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface Session extends SessionInfo {
   token: string;
-  expiresAt: string;
+  /** For switched-role sessions: the IAM role's unique ID. */
+  roleId: string | null;
+  /** For switched-role sessions: the session to return to. */
+  parentToken: string | null;
 }
 
 interface SessionRow {
@@ -21,6 +24,14 @@ interface SessionRow {
   principal_id: string;
   created_at: string;
   expires_at: string;
+  role_id: string | null;
+  parent_token: string | null;
+}
+
+export interface CreateSessionOptions {
+  ttlMs?: number;
+  roleId?: string;
+  parentToken?: string;
 }
 
 export function createSession(
@@ -28,13 +39,15 @@ export function createSession(
   clock: Clock,
   accountId: string,
   principal: Principal,
+  opts: CreateSessionOptions = {},
 ): Session {
   const now = clock.now();
   const token = generateToken();
   run(
     db,
     `INSERT INTO sessions (token, account_id, principal_type, principal_name, principal_arn,
-       principal_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       principal_id, created_at, expires_at, role_id, parent_token)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     token,
     accountId,
     principal.type,
@@ -42,7 +55,9 @@ export function createSession(
     principal.arn,
     principal.id,
     now.toISOString(),
-    new Date(now.getTime() + SESSION_TTL_MS).toISOString(),
+    new Date(now.getTime() + (opts.ttlMs ?? SESSION_TTL_MS)).toISOString(),
+    opts.roleId ?? null,
+    opts.parentToken ?? null,
   );
   return findSession(db, clock, token) as Session;
 }
@@ -56,9 +71,24 @@ export function findSession(db: Db, clock: Clock, token: string): Session | unde
   }
   const account = findAccountById(db, row.account_id);
   if (!account) return undefined;
+
+  let switchedFrom: SessionInfo["switchedFrom"];
+  if (row.parent_token) {
+    const parent = get<SessionRow>(db, "SELECT * FROM sessions WHERE token = ?", row.parent_token);
+    if (parent) {
+      switchedFrom = {
+        principalName: parent.principal_name,
+        principalArn: parent.principal_arn,
+        accountId: parent.account_id,
+      };
+    }
+  }
+
   return {
     token: row.token,
     expiresAt: row.expires_at,
+    roleId: row.role_id,
+    parentToken: row.parent_token,
     accountId: account.id,
     accountName: account.name,
     accountAlias: account.alias,
@@ -69,6 +99,7 @@ export function findSession(db: Db, clock: Clock, token: string): Session | unde
       arn: row.principal_arn,
       id: row.principal_id,
     },
+    ...(switchedFrom ? { switchedFrom } : {}),
   };
 }
 
@@ -76,8 +107,13 @@ export function deleteSession(db: Db, token: string) {
   run(db, "DELETE FROM sessions WHERE token = ?", token);
 }
 
-/** The public view of a session: everything except the secret token. */
+/** Ends every session of a principal, e.g. when its IAM user is deleted. */
+export function deleteSessionsForPrincipal(db: Db, principalId: string) {
+  run(db, "DELETE FROM sessions WHERE principal_id = ? OR role_id = ?", principalId, principalId);
+}
+
+/** The public view of a session: everything except the secret token and internal IDs. */
 export function toSessionInfo(session: Session): SessionInfo {
-  const { token: _token, expiresAt: _expiresAt, ...info } = session;
+  const { token: _token, roleId: _roleId, parentToken: _parentToken, ...info } = session;
   return info;
 }

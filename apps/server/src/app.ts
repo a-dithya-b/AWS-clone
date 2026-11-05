@@ -4,30 +4,52 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { authRoutes } from "./core/auth-routes";
-import { type Authorizer, rootOnlyAuthorizer } from "./core/authorize";
+import type { Authorizer } from "./core/authorize";
+import { buildCatalog } from "./core/catalog";
 import { type Clock, systemClock } from "./core/clock";
 import { type Db, runMigrations } from "./core/db";
 import { AwsError } from "./core/errors";
 import { type AppEnv, loadSession, loopbackHostOnly } from "./core/http";
 import { coreMigrations } from "./core/migrations";
 import { serviceRoutes } from "./core/pipeline";
+import { EventBus } from "./core/event-bus";
 import type { CoreDeps, ServiceModule } from "./core/service";
+import { createIamAuthorizer } from "./services/iam/authorizer";
 
 export interface CreateCoreOptions {
   db: Db;
   services: ServiceModule[];
   clock?: Clock;
+  /** Defaults to real IAM policy evaluation. */
   authorizer?: Authorizer;
+  /** Folder for files services keep outside SQLite (S3 objects). Tests use a temp folder. */
+  dataDir?: string;
 }
 
-/** Runs migrations (core first, then each service's) and wires up the shared dependencies. */
+/**
+ * Runs migrations (core first, then each service's), seeds services, and wires up the shared
+ * dependencies.
+ */
 export function createCore(opts: CreateCoreOptions): CoreDeps {
   runMigrations(opts.db, [...coreMigrations, ...opts.services.flatMap((s) => s.migrations ?? [])]);
-  return {
+  const clock = opts.clock ?? systemClock;
+  const deps: CoreDeps = {
     db: opts.db,
-    clock: opts.clock ?? systemClock,
-    authorizer: opts.authorizer ?? rootOnlyAuthorizer,
+    clock,
+    authorizer: opts.authorizer ?? createIamAuthorizer(opts.db, clock),
     services: opts.services,
+    bus: new EventBus(),
+    dataDir: opts.dataDir ?? "",
+  };
+  for (const service of opts.services) service.seed?.(deps);
+  return deps;
+}
+
+/** Starts every service's background work. Returns a function that stops it all. */
+export function startServices(deps: CoreDeps): () => void {
+  const stops = deps.services.map((s) => s.start?.(deps)).filter((f): f is () => void => !!f);
+  return () => {
+    for (const stop of stops) stop();
   };
 }
 
@@ -45,6 +67,9 @@ export function createApp(deps: CoreDeps, opts: CreateAppOptions = {}) {
   app.use("/api/*", loadSession(deps));
 
   app.get("/api/health", (c) => c.json({ status: "ok" }));
+  // Every simulated IAM action, for the policy editor's autocomplete, validation and summaries.
+  const catalog = buildCatalog(deps.services);
+  app.get("/api/meta/catalog", (c) => c.json({ actions: catalog }));
   app.route("/api/auth", authRoutes(deps));
   app.route("/api/services", serviceRoutes(deps));
   app.all("/api/*", (c) => c.json({ code: "NotFound", message: "No such API route." }, 404));

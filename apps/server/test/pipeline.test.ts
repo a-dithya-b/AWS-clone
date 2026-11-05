@@ -13,6 +13,7 @@ const demoService = defineService({
     defineAction({
       name: "Echo",
       iamAction: "demo:Echo",
+      accessLevel: "Read",
       input: z.object({ Name: z.string().min(1) }),
       resource: (input, { session }) =>
         `arn:aws:demo:us-east-1:${session.accountId}:thing/${input.Name}`,
@@ -21,6 +22,7 @@ const demoService = defineService({
     defineAction({
       name: "Fail",
       iamAction: "demo:Fail",
+      accessLevel: "Write",
       input: z.object({}),
       handler: () => {
         throw new AwsError("ThingNotFound", "The thing does not exist.", 404);

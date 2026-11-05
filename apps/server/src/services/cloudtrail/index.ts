@@ -14,6 +14,7 @@ export const cloudtrailService = defineService({
     defineAction({
       name: "LookupEvents",
       iamAction: "cloudtrail:LookupEvents",
+      accessLevel: "Read",
       // The console polls this. Logging every lookup would bury the events learners care about.
       record: false,
       input: z.object({
