@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Shared code runs in both Node and the browser; both provide the Web Crypto global.
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src"]
+}

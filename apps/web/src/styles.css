@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+ * CloudLearn's own visual identity. The layout follows the AWS console so skills transfer, but the
+ * colors, type and icons are our own.
+ */
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --color-page: #f4f6f6;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafa;
+  --color-border: #dde4e4;
+  --color-fg: #0f1f22;
+  --color-muted: #5a6b6e;
+
+  --color-brand: #0f766e;
+  --color-brand-hover: #115e59;
+  --color-brand-soft: #e6f6f4;
+  --color-brand-fg: #ffffff;
+
+  --color-topbar: #0b2729;
+  --color-topbar-hover: #15393c;
+  --color-topbar-fg: #e6f2f1;
+  --color-topbar-muted: #93b1b0;
+  --color-accent: #5eead4;
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-danger-border: #fecdca;
+  --color-success: #067647;
+  --color-success-soft: #ecfdf3;
+  --color-success-border: #abefc6;
+  --color-info: #175cd3;
+  --color-info-soft: #eff8ff;
+  --color-info-border: #b2ddff;
+  --color-warning: #b54708;
+  --color-warning-soft: #fffaeb;
+  --color-warning-border: #fedf89;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
