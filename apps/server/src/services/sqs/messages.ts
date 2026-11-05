@@ -127,8 +127,9 @@ export interface SendResult {
   SequenceNumber?: string;
 }
 
-// Characters SQS accepts in message bodies (XML 1.0 character ranges).
-// Built from a string: TypeScript's regex checker misreads the astral-plane range in a literal.
+// Characters SQS accepts in message bodies (XML 1.0 character ranges). Matching control
+// characters is the point here.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is intended
 const INVALID_CHARS = /[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
 
